@@ -89,7 +89,6 @@ function importNewsItem($pdo, $newsData, $categoryId)
 
     $newsDbData = [
         ':id' => $newsData['id'],
-        ':category_id' => $categoryId,
         ':active' => (int)$newsData['active'],
         ':title' => $newsData['title'],
         ':image' => $newsData['image'],
@@ -100,10 +99,34 @@ function importNewsItem($pdo, $newsData, $categoryId)
     logData($newsDbData);
 
     $statement = $pdo->prepare('
-        INSERT INTO news (id, category_id, active, title, image, description, text, date)
-        VALUES (:id, :category_id, :active, :title, :image, :description, :text, :date)
+        SELECT id FROM news WHERE id = :id
     ');
-    $statement->execute($newsDbData);
+    $statement->execute([':id' => $newsData['id']]);
+    $news = $statement->fetch();
+
+    if (!$news) {
+        $statement = $pdo->prepare('
+            INSERT INTO news (id, active, title, image, description, text, date)
+            VALUES (:id, :active, :title, :image, :description, :text, :date)
+        ');
+        $res = $statement->execute($newsDbData);
+    } else {
+        $res = true;
+    }
+
+    if ($res) {
+        $newsCategoryDbData = [
+            ':news_id' => $newsData['id'],
+            ':category_id' => $categoryId,
+        ];
+        logData($newsCategoryDbData);
+
+        $statement = $pdo->prepare('
+            INSERT INTO news_category (news_id, category_id)
+            VALUES (:news_id, :category_id)
+        ');
+        $statement->execute($newsCategoryDbData);
+    }
 }
 
 function logData($data)
